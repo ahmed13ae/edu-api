@@ -11,4 +11,7 @@ class Course extends Model
         'name',
         'price'
     ];
+    public function provider(){
+        return $this->belongsTo(Provider::class);
+    }
 }
