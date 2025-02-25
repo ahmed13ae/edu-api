@@ -2,25 +2,41 @@
 
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\UserController;
-use App\Models\Course;
-use App\Models\Provider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
-//auth api
+// Auth API Routes
 Route::post('/register', [UserController::class, 'register']);
 Route::post('/login', [UserController::class, 'login']);
 Route::post('/logout', [UserController::class, 'logout'])->middleware('auth:sanctum');
 
-//crud api
-Route::get('/courses', [CourseController::class, 'index']);
-Route::post('/courses', [CourseController::class, 'store']);
-Route::put('/courses/{id}', [CourseController::class, 'update']);
-Route::get('/courses/{id}', [CourseController::class, 'show']);
-Route::delete('/courses/{id}', [CourseController::class, 'destroy']);
+// Protected Routes for Authenticated Users
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+
+    Route::get('/user/profile', function () {
+        return response()->json(['message' => 'User Profile']);
+    });
+
+    // Courses - General access
+    Route::get('/courses', [CourseController::class, 'index']);
+    Route::get('/courses/{id}', [CourseController::class, 'show']);
+});
+
+// Admin-Only Routes (Require 'admin' role)
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    Route::get('/admin/dashboard', function () {
+        return response()->json(['message' => 'Welcome, Admin!']);
+    });
+
+    // Course Management - Only Admin Can Modify
+    Route::post('/admin/courses', [CourseController::class, 'store']);
+    Route::put('/admin/courses/{id}', [CourseController::class, 'update']);
+    Route::delete('/admin/courses/{id}', [CourseController::class, 'destroy']);
+});
+
 // Route::get('/{id}',function($id){
 //     $provider=Provider::find($id);
 //     $courses=$provider->courses;
