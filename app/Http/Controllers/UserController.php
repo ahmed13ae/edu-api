@@ -27,15 +27,20 @@ class UserController extends Controller
                 'name' => 'required|string|min:3|max:255',
                 'email' => 'required|email|string|unique:users,email',
                 'password' => 'required|string|max:255|min:6|confirmed',
-                'role' => 'nullable|string|in:user,admin', // Restrict to only 'user' or 'admin'
+                'image' => 'nullable|image|mimes:jpeg,png,jpg|max:4096',               
             ]);
+            if ($request->hasFile('image')) {
+                $path=$request->file('image')->store('images','public');
+                $validated['image']=$path;
+            }
 
             // Create a new user
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
-                'role' => $validated['role'] ?? 'user', // Default role is 'user'
+                'role' =>  'user',
+                'image' => $validated['image']
             ]);
 
             return response()->json(["message" => "Registered successfully!", "user" => $user], 201);

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreCourseRequest;
@@ -6,6 +7,8 @@ use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Exception;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class CourseController extends Controller
 {
@@ -16,15 +19,87 @@ class CourseController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse JSON response containing course data or an error message.
      */
-    public function index()
-    {
-        try {
-            $data = Course::all();
-            return response()->json(['success' => true, 'courses' => $data], 200);
-        } catch (Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Failed to fetch courses', 'error' => $e->getMessage()], 500);
-        }
+    // public function index()
+    // {
+    //     try {
+    //         $courses = Course::with(['provider.city', 'field'])->get();
+    //         $data = $courses->map(function ($course) {
+    //             return [
+    //                 'id' => $course->id,
+    //                 'name' => $course->name,
+    //                 'price' => $course->price,
+    //                 'image' => $course->image,
+    //                 'description' => $course->description,
+    //                 'content' => $course->content,
+    //                 'provider' => $course->provider->name,
+    //                 'city' => $course->provider->city->city,
+    //                 'field' => $course->field->name
+    //             ];
+    //         });
+    //         return response()->json(['success' => true, 'courses' => $data], 200);
+    //     } catch (Exception $e) {
+    //         return response()->json(['success' => false, 'message' => 'Failed to fetch courses', 'error' => $e->getMessage()], 500);
+    //     }
+    // }
+    public function index(Request $request)
+{
+    try{
+    $city = $request->query('city');
+    $field = $request->query('field');
+    $page = $request->query('page', 1); 
+    $perPage = 2; 
+    $offset = ($page - 1) * $perPage; 
+
+    // Base query
+    $query = "
+        SELECT SQL_CALC_FOUND_ROWS courses.id, courses.name, courses.price, courses.image, 
+               courses.description, courses.content, providers.id AS provider_id, 
+               providers.name AS provider, cities.city AS city, 
+               fields.name AS field
+        FROM courses
+        JOIN providers ON courses.provider_id = providers.id
+        JOIN cities ON providers.city_id = cities.id
+        JOIN fields ON courses.field_id = fields.id
+        WHERE 1=1
+    ";
+
+    // Parameters for binding (to prevent SQL injection)
+    $bindings = [];
+    
+    if ($city) {
+        $query .= " AND cities.city = ?";
+        $bindings[] = $city;
     }
+
+    if ($field) {
+        $query .= " AND fields.name = ?";
+        $bindings[] = $field;
+    }
+
+    // Add pagination (LIMIT and OFFSET)
+    $query .= " LIMIT ? OFFSET ?";
+    $bindings[] = $perPage;
+    $bindings[] = $offset;
+
+    // Execute the query
+    $courses = DB::select($query, $bindings);
+
+    // Get total count of results without pagination (for frontend navigation)
+    $total = DB::select("SELECT FOUND_ROWS() as total")[0]->total;
+    $totalPages = ceil($total / $perPage);
+
+    return response()->json([
+        'success' => true,
+        'current_page' => $page,
+        'total_pages' => $totalPages,
+        'total_courses' => $total,
+        'courses_per_page' => $perPage,
+        'courses' => $courses
+    ], 200);}
+    catch (Exception $e) {
+        return response()->json(['success' => false, 'message' => 'Failed to fetch courses', 'error' => $e->getMessage()], 500);
+    }
+}
 
     /**
      * Store a new course.
@@ -36,8 +111,19 @@ class CourseController extends Controller
      */
     public function store(StoreCourseRequest $request)
     {
+        $user_id=Auth::user()->id;
+        $validated=$request->validated();
+        $validated['user_id']=$user_id;
+        if ($request->hasFile('image')) {
+            $path=$request->file('image')->store('images','public');
+            $validated['image']=$path;
+        }
+        if ($request->hasFile('content')) {
+            $path=$request->file('content')->store('content','public');
+            $validated['content']=$path;
+        }
         try {
-            $data = Course::create($request->validated());
+            $data = Course::create($validated);
             return response()->json(['success' => true, 'course' => $data, 'message' => 'Course created successfully'], 201);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => 'Failed to create course', 'error' => $e->getMessage()], 500);
@@ -53,22 +139,31 @@ class CourseController extends Controller
      * @param int $id The ID of the course to update.
      * @return \Illuminate\Http\JsonResponse JSON response indicating success or failure.
      */
-    public function update(Request $request, $id)
-    {
-        try {
-            $course = Course::findOrFail($id);
-            $validated = $request->validate([
-                'name' => 'string',
-                'price' => 'integer'
-            ]);
-            $course->update($validated);
-
-            return response()->json(['success' => true, 'message' => 'Course updated successfully', 'course' => $course], 200);
-        } catch (ModelNotFoundException $e) {
-            return response()->json(['success' => false, 'message' => 'Course not found'], 404);
-        } catch (Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Failed to update course', 'error' => $e->getMessage()], 500);
+    public function update(Request $request,$id){
+        $user_id=Auth::user()->id;
+        $course=Course::where('id',$id)->where('user_id',$user_id)->first();
+        if(!$course){
+            return response()->json(["message" => "Provider not found!"], 404);
         }
+        
+        $validated = $request->validate([
+            'name' => 'string|min:2|max:255',
+            "price"=>"integer",
+            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:4096',
+            'description' => 'nullable|string|max:1000',
+            'content'=>'nullable|file|mimes:pdf,doc,docx|max:30720',
+        ]);
+        if ($request->hasFile('image')) {
+            $path=$request->file('image')->store('images','public');
+            $validated['image']=$path;
+        }
+        if ($request->hasFile('content')) {
+            $path=$request->file('content')->store('content','public');
+            $validated['content']=$path;
+        }
+        
+        $course->update($validated);
+        return response()->json(["message" => "Course updated successfully!", "provider" => $course], 200);
     }
 
     /**
@@ -80,16 +175,33 @@ class CourseController extends Controller
      * @return \Illuminate\Http\JsonResponse JSON response containing course data or an error message.
      */
     public function show($id)
-    {
-        try {
-            $data = Course::findOrFail($id);
-            return response()->json(['success' => true, 'course' => $data], 200);
-        } catch (ModelNotFoundException $e) {
-            return response()->json(['success' => false, 'message' => 'Course not found'], 404);
-        } catch (Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Failed to fetch course', 'error' => $e->getMessage()], 500);
-        }
+{
+    try {
+        $course = Course::with(['provider', 'field'])->findOrFail($id);
+
+        $data = [
+            'id' => $course->id,
+            'name' => $course->name,
+            'price' => $course->price,
+            'image' => $course->image,
+            'description' => $course->description,
+            'content' => $course->content,
+            'provider' => [
+                'id' => $course->provider->id,
+                'name' => $course->provider->name,
+                'city' => $course->provider->city->city 
+            ],
+            'field' => [
+                'id' => $course->field->id,
+                'name' => $course->field->name
+            ]
+        ];
+
+        return response()->json([ 'course' => $data], 200);
+    } catch (Exception $e) {
+        return response()->json([ 'message' => 'Failed to fetch course', 'error' => $e->getMessage()], 500);
     }
+}
 
     /**
      * Delete a course.
@@ -104,11 +216,9 @@ class CourseController extends Controller
         try {
             $course = Course::findOrFail($id);
             $course->delete();
-            return response()->json(['success' => true, 'message' => 'Course deleted successfully'], 200);
-        } catch (ModelNotFoundException $e) {
-            return response()->json(['success' => false, 'message' => 'Course not found'], 404);
+            return response()->json([ 'message' => 'Course deleted successfully'], 200);
         } catch (Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Failed to delete course', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Failed to delete course', 'error' => $e->getMessage()], 500);
         }
     }
 }
