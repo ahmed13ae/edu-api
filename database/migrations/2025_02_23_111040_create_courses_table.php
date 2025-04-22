@@ -15,7 +15,13 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->integer('price');
+            $table->string('image')->nullable();
+            $table->string('description')->nullable();
+            $table->string('content')->nullable();
             $table->foreignId('provider_id')->constrained('providers')->cascadeOnDelete();
+            $table->foreignId('field_id')->constrained('fields')->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+
             $table->timestamps();
             
         });

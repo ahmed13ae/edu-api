@@ -24,6 +24,11 @@ class StoreCourseRequest extends FormRequest
         return [
             "name"=>"required|string",
             "price"=>"required|integer",
+            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:4096',
+            'description' => 'nullable|string|max:1000',
+            'content'=>'nullable|file|mimes:pdf,doc,docx|max:30720',
+            'provider_id'=>'required|exists:providers,id',
+            'field_id'=>'required|exists:fields,id'
         ];
     }
 }
