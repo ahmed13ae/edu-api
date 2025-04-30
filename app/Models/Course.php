@@ -16,7 +16,9 @@ class Course extends Model
     public function field(){
         return $this->belongsTo(Field::class);
     }
-    public function reviews(){
-        return $this->hasMany(Review::class);
+    public function reviews()
+    {
+    return $this->morphMany(Review::class, 'reviewable');
     }
+
 }
