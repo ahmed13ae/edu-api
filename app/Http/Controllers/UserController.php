@@ -7,17 +7,43 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Exception;
+use OpenApi\Annotations as OA;
 
 class UserController extends Controller
 {
     /**
-     * Register a new user.
-     *
-     * @param Request $request The HTTP request containing user registration data.
-     * @return \Illuminate\Http\JsonResponse The response with a success message and user data.
-     * 
-     * @throws ValidationException If validation fails.
-     * @throws Exception If an unexpected error occurs.
+     * @OA\Post(
+     *     path="/api/register",
+     *     tags={"Auth"},
+     *     summary="Register a new user",
+     *     operationId="register",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 required={"name", "email", "password", "password_confirmation"},
+     *                 @OA\Property(property="name", type="string", example="John Doe"),
+     *                 @OA\Property(property="email", type="string", format="email", example="john@example.com"),
+     *                 @OA\Property(property="password", type="string", format="password", example="secret123"),
+     *                 @OA\Property(property="password_confirmation", type="string", format="password", example="secret123"),
+     *                 @OA\Property(property="image", type="file")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="User registered successfully"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation failed"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal server error"
+     *     )
+     * )
      */
     public function register(Request $request)
     {
@@ -51,14 +77,60 @@ class UserController extends Controller
         }
     }
 
-    /**
-     * Authenticate a user and generate an access token.
-     *
-     * @param Request $request The HTTP request containing login credentials.
-     * @return \Illuminate\Http\JsonResponse The response containing the authentication token.
-     * 
-     * @throws ValidationException If validation fails.
-     * @throws Exception If an unexpected error occurs.
+        /**
+     * @OA\Post(
+     *     path="/api/login",
+     *     summary="User login",
+     *     description="Authenticate user and return access token",
+     *     operationId="loginUser",
+     *     tags={"Auth"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="application/x-www-form-urlencoded",
+     *             @OA\Schema(
+     *                 required={"email", "password"},
+     *                 @OA\Property(
+     *                     property="email",
+     *                     type="string",
+     *                     format="email",
+     *                     example="user@example.com"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="password",
+     *                     type="string",
+     *                     format="password",
+     *                     example="password123"
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful login",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Logged in!"),
+     *             @OA\Property(property="token", type="string", example="1|longTokenHere123"),
+     *             @OA\Property(property="user", type="object",
+     *                 @OA\Property(property="id", type="integer"),
+     *                 @OA\Property(property="name", type="string"),
+     *                 @OA\Property(property="email", type="string")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Invalid email or password"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation failed"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Something went wrong"
+     *     )
+     * )
      */
     public function login(Request $request)
     {
@@ -86,13 +158,22 @@ class UserController extends Controller
         }
     }
 
-    /**
-     * Logout the authenticated user by revoking their current access token.
-     *
-     * @param Request $request The HTTP request containing authentication details.
-     * @return \Illuminate\Http\JsonResponse The response confirming logout.
-     * 
-     * @throws Exception If an unexpected error occurs.
+     /**
+     * @OA\Post(
+     *     path="/api/logout",
+     *     tags={"Auth"},
+     *     summary="Logout the authenticated user",
+     *     operationId="logout",
+     *     security={{"sanctum":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Logout successful"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal server error"
+     *     )
+     * )
      */
     public function logout(Request $request)
     {

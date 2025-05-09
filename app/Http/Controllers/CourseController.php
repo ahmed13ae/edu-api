@@ -12,13 +12,6 @@ use Illuminate\Support\Facades\DB;
 
 class CourseController extends Controller
 {
-    /**
-     * Retrieve all courses.
-     *
-     * Fetches all courses from the database and returns them as JSON.
-     *
-     * @return \Illuminate\Http\JsonResponse JSON response containing course data or an error message.
-     */
     // public function index()
     // {
     //     try {
@@ -41,6 +34,64 @@ class CourseController extends Controller
     //         return response()->json(['success' => false, 'message' => 'Failed to fetch courses', 'error' => $e->getMessage()], 500);
     //     }
     // }
+
+        /**
+     * @OA\Get(
+     *     path="/api/courses",
+     *     summary="Get all courses with optional filters",
+     *     description="Returns a paginated list of courses, optionally filtered by city and/or field",
+     *     operationId="getCourses",
+     *     tags={"Courses"},
+     *     @OA\Parameter(
+     *         name="city",
+     *         in="query",
+     *         description="City name to filter courses",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Parameter(
+     *         name="field",
+     *         in="query",
+     *         description="Field name to filter courses",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         description="Page number for pagination",
+     *         required=false,
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="List of courses",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="current_page", type="integer"),
+     *             @OA\Property(property="total_pages", type="integer"),
+     *             @OA\Property(property="total_courses", type="integer"),
+     *             @OA\Property(property="courses_per_page", type="integer"),
+     *             @OA\Property(
+     *                 property="courses",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     @OA\Property(property="id", type="integer"),
+     *                     @OA\Property(property="name", type="string"),
+     *                     @OA\Property(property="price", type="integer"),
+     *                     @OA\Property(property="image", type="string"),
+     *                     @OA\Property(property="description", type="string"),
+     *                     @OA\Property(property="content", type="string"),
+     *                     @OA\Property(property="provider", type="string"),
+     *                     @OA\Property(property="city", type="string"),
+     *                     @OA\Property(property="field", type="string")
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=500, description="Failed to fetch courses")
+     * )
+     */
     public function index(Request $request)
 {
     try{
@@ -101,13 +152,58 @@ class CourseController extends Controller
     }
 }
 
-    /**
-     * Store a new course.
-     *
-     * Validates and creates a new course record in the database.
-     *
-     * @param StoreCourseRequest $request The validated request containing course data.
-     * @return \Illuminate\Http\JsonResponse JSON response with success message and course data.
+        /**
+     * @OA\Post(
+     *     path="/api/courses",
+     *     summary="Store a new course",
+     *     description="Creates a new course with validated data and stores it in the database.",
+     *     operationId="storeCourse",
+     *     tags={"Courses"},
+     *     security={{"sanctum":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 required={"name", "price", "provider_id", "field_id"},
+     *                 @OA\Property(property="name", type="string", example="Laravel Mastery"),
+     *                 @OA\Property(property="price", type="integer", example=200),
+     *                 @OA\Property(property="provider_id", type="integer", example=1),
+     *                 @OA\Property(property="field_id", type="integer", example=3),
+     *                 @OA\Property(property="description", type="string", example="A complete Laravel 11 course."),
+     *                 @OA\Property(property="image", type="file", format="binary"),
+     *                 @OA\Property(property="content", type="file", format="binary")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Course created successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Course created successfully"),
+     *             @OA\Property(property="course", type="object",
+     *                 @OA\Property(property="id", type="integer", example=10),
+     *                 @OA\Property(property="name", type="string", example="Laravel Mastery"),
+     *                 @OA\Property(property="price", type="integer", example=200),
+     *                 @OA\Property(property="image", type="string", example="images/laravel.png"),
+     *                 @OA\Property(property="content", type="string", example="content/laravel.pdf"),
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthorized - user not authenticated"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Failed to create course"
+     *     )
+     * )
      */
     public function store(StoreCourseRequest $request)
     {
@@ -130,14 +226,42 @@ class CourseController extends Controller
         }
     }
 
-    /**
-     * Update an existing course.
-     *
-     * Finds a course by ID, validates request data, and updates the course.
-     *
-     * @param Request $request The request containing updated course data.
-     * @param int $id The ID of the course to update.
-     * @return \Illuminate\Http\JsonResponse JSON response indicating success or failure.
+        /**
+     * @OA\Put(
+     *     path="/api/courses/{id}",
+     *     summary="Update an existing course",
+     *     description="Updates a course owned by the authenticated user",
+     *     operationId="updateCourse",
+     *     tags={"Courses"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID of the course to update",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 @OA\Property(property="name", type="string", example="Updated Course"),
+     *                 @OA\Property(property="price", type="integer", example=300),
+     *                 @OA\Property(property="description", type="string", example="Updated description"),
+     *                 @OA\Property(property="image", type="file", format="binary"),
+     *                 @OA\Property(property="content", type="file", format="binary")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Course updated successfully"
+     *     ),
+     *     @OA\Response(response=404, description="Provider not found"),
+     *     @OA\Response(response=422, description="Validation error"),
+     *     @OA\Response(response=500, description="Failed to update course")
+     * )
      */
     public function update(Request $request,$id){
         $user_id=Auth::user()->id;
@@ -166,18 +290,35 @@ class CourseController extends Controller
         return response()->json(["message" => "Course updated successfully!", "provider" => $course], 200);
     }
 
-    /**
-     * Retrieve a specific course.
-     *
-     * Fetches a single course by its ID.
-     *
-     * @param int $id The ID of the course to retrieve.
-     * @return \Illuminate\Http\JsonResponse JSON response containing course data or an error message.
+        /**
+     * @OA\Get(
+     *     path="/api/courses/{id}",
+     *     summary="Get a specific course by ID",
+     *     description="Returns details of a specific course including provider, field, and reviews",
+     *     operationId="getCourseById",
+     *     tags={"Courses"},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID of the course",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Course details",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="course", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=404, description="Course not found"),
+     *     @OA\Response(response=500, description="Failed to fetch course")
+     * )
      */
     public function show($id)
 {
     try {
-        $course = Course::with(['provider', 'field'])->findOrFail($id);
+        $course = Course::with(['provider', 'field','reviews.user'])->findOrFail($id);
 
         $data = [
             'id' => $course->id,
@@ -194,7 +335,10 @@ class CourseController extends Controller
             'field' => [
                 'id' => $course->field->id,
                 'name' => $course->field->name
-            ]
+            ],
+            'average_rating' => number_format($course->average_rating, 1),
+            'review_count' => $course->reviews_count,
+            'reviews' => $course->formatted_reviews
         ];
 
         return response()->json([ 'course' => $data], 200);
@@ -203,13 +347,25 @@ class CourseController extends Controller
     }
 }
 
-    /**
-     * Delete a course.
-     *
-     * Finds a course by ID and deletes it from the database.
-     *
-     * @param int $id The ID of the course to delete.
-     * @return \Illuminate\Http\JsonResponse JSON response indicating success or failure.
+        /**
+     * @OA\Delete(
+     *     path="/api/courses/{id}",
+     *     summary="Delete a course",
+     *     description="Deletes a course by ID",
+     *     operationId="deleteCourse",
+     *     tags={"Courses"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID of the course to delete",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Course deleted successfully"),
+     *     @OA\Response(response=404, description="Course not found"),
+     *     @OA\Response(response=500, description="Failed to delete course")
+     * )
      */
     public function destroy($id)
     {

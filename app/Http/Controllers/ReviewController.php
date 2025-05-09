@@ -5,14 +5,32 @@ use App\Models\Course;
 use App\Models\Provider;
 use App\Models\Review;
 use Illuminate\Http\Request;
+use OpenApi\Annotations as OA;
+
 
 class ReviewController extends Controller
 {
-    /**
-     * Get the list of reviews with optional filters.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+        /**
+     * @OA\Get(
+     *     path="/api/reviews",
+     *     summary="List all reviews (courses or providers)",
+     *     tags={"Reviews"},
+     *     @OA\Parameter(
+     *         name="type",
+     *         in="query",
+     *         description="Filter by type: course or provider",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="List of reviews"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Failed to fetch reviews"
+     *     )
+     * )
      */
     public function index(Request $request)
     {
@@ -51,13 +69,9 @@ class ReviewController extends Controller
             // Modify the reviewable_type to be just 'Course' or 'Provider'
             $reviews->getCollection()->transform(function ($review) {
                 $review->reviewable_type = class_basename($review->reviewable_type);
+                $review->username = $review->user->name ?? null;
                 return $review;
             });
-
-            // Get the average rating for the reviewable item (course or provider)
-            $averageRating = $reviews->getCollection()->first()->reviewable->reviews()
-            ->avg('rating');
-            $averageRatingFormatted = number_format($averageRating, 1);
 
             // Custom pagination response structure
             $data = [
@@ -65,7 +79,6 @@ class ReviewController extends Controller
                 'total_pages' => $reviews->lastPage(),
                 'per_page' => $reviews->perPage(),
                 'total_items' => $reviews->total(),
-                'average_rating' => $averageRatingFormatted,
                 'data' => $reviews->items(), // This is the collection of reviews for the current page
                 'links' => [
                     'previous' => $reviews->previousPageUrl(),
@@ -82,26 +95,60 @@ class ReviewController extends Controller
         }
     }
     
-
-
     /**
-     * Store a review for a course.
-     *
-     * @param Request $request
-     * @param int $id
-     * @return \Illuminate\Http\JsonResponse
+     * @OA\Post(
+     *     path="/api/courses/{id}/reviews",
+     *     summary="Add a review to a course , (authorized user)",
+     *     tags={"Reviews"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="Course ID",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"rating", "comment"},
+     *             @OA\Property(property="rating", type="integer", example=5),
+     *             @OA\Property(property="comment", type="string", example="Great course!")
+     *         )
+     *     ),
+     *     @OA\Response(response=201, description="Review created"),
+     *     @OA\Response(response=500, description="Failed to create review")
+     * )
      */
     public function storeCourseReview(Request $request, $id)
     {
         return $this->storeReview($request, Course::class, $id);
     }
 
-    /**
-     * Store a review for a provider.
-     *
-     * @param Request $request
-     * @param int $id
-     * @return \Illuminate\Http\JsonResponse
+        /**
+     * @OA\Post(
+     *     path="/api/providers/{id}/reviews",
+     *     summary="Add a review to a provider, (authorized user)",
+     *     tags={"Reviews"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="Provider ID",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"rating", "comment"},
+     *             @OA\Property(property="rating", type="integer", example=4),
+     *             @OA\Property(property="comment", type="string", example="Very helpful")
+     *         )
+     *     ),
+     *     @OA\Response(response=201, description="Review created"),
+     *     @OA\Response(response=500, description="Failed to create review")
+     * )
      */
     public function storeProviderReview(Request $request, $id)
     {
@@ -152,12 +199,29 @@ class ReviewController extends Controller
         }
     }
 
-    /**
-     * Update a review.
-     *
-     * @param Request $request
-     * @param int $id
-     * @return \Illuminate\Http\JsonResponse
+        /**
+     * @OA\Put(
+     *     path="/api/reviews/{id}",
+     *     summary="Update a review , (authorized user)",
+     *     tags={"Reviews"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Review ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         @OA\JsonContent(
+     *             @OA\Property(property="rating", type="integer", example=4),
+     *             @OA\Property(property="comment", type="string", example="Updated comment")
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="Review updated"),
+     *     @OA\Response(response=403, description="Unauthorized"),
+     *     @OA\Response(response=500, description="Failed to update review")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -185,11 +249,23 @@ class ReviewController extends Controller
         }
     }
 
-    /**
-     * Delete a review.
-     *
-     * @param int $id
-     * @return \Illuminate\Http\JsonResponse
+        /**
+     * @OA\Delete(
+     *     path="/api/reviews/{id}",
+     *     summary="Delete a review , (authorized user)",
+     *     tags={"Reviews"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Review ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Review deleted"),
+     *     @OA\Response(response=403, description="Unauthorized"),
+     *     @OA\Response(response=500, description="Failed to delete review")
+     * )
      */
     public function destroy($id)
     {
