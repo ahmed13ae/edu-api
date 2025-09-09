@@ -5,6 +5,7 @@ use App\Http\Controllers\CourseController;
 use App\Http\Controllers\FieldController;
 use App\Http\Controllers\ProviderController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ReviewController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [UserController::class, 'register']);
 Route::post('/login', [UserController::class, 'login']);
 Route::post('/logout', [UserController::class, 'logout'])->middleware('auth:sanctum');
+Route::post('/forgot-password', [UserController::class, 'forgotPassword']);
+Route::post('/reset-password', [UserController::class, 'resetPassword']);
 
 //**************Protected Routes for Authenticated Users*****************
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -19,7 +22,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
         return $request->user();
     });
 });
-    
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    // Create review for course or provider
+    Route::post('/courses/{id}/reviews', [ReviewController::class, 'storeCourseReview']);
+    Route::post('/providers/{id}/reviews', [ReviewController::class, 'storeProviderReview']);
+
+    // Update or delete user's own review (or admin)
+    // put /reviews/1/?type=provider or /reviews/1/?type=course
+    Route::put('/reviews/{id}', [ReviewController::class, 'update']);
+    Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
+});
+
 
     
 
@@ -52,3 +67,6 @@ Route::get('/providers/{id}',[ProviderController::class,'show']);
 //helper routes
 Route::get('/cities', [CityController::class, 'index']);
 Route::get('/fields', [FieldController::class, 'index']);
+// reviews routes
+// Get /reviews/?type=provider  or Get /reviews/?type=course
+Route::get('/reviews', [ReviewController::class, 'index']); // all

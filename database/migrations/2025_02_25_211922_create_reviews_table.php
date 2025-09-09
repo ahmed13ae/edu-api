@@ -13,13 +13,14 @@ return new class extends Migration
     {
         Schema::create('reviews', function (Blueprint $table) {
             $table->id();
-            $table->string('review');
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->unsignedBigInteger('reviewable_id');
+            $table->string('reviewable_type');
             $table->integer('rating');
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('course_id')->constrained('courses')->cascadeOnDelete();
+            $table->text('comment');
             $table->timestamps();
-        });
-    }
+    });
+}
 
     /**
      * Reverse the migrations.
